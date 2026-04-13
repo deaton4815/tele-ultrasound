@@ -1,0 +1,141 @@
+clc; clear; close all;
+
+useActin = false;
+useUnity = false;
+useMyo = false;
+sendToRobot = false;
+
+chIds = [1 5];
+wristFlexThreshold = 0.10;
+wristExtendThreshold = 0.05;
+sampleWindow = 100;
+dq = 0.01;
+
+gripper = 0.0;
+
+q = zeros(1,7);
+
+qMin = [-1.2 -0.8 -1.0 -1.0 -1.0 -1.0 -1.0];
+qMax = [ 1.2  0.8  1.0  1.0  1.0  1.0  1.0];
+
+jointList = 1:7;
+jointIdx = 1;
+activeJoint = jointList(jointIdx);
+
+% mini vie path
+currDir = cd;
+cd('C:\GitHub\MiniVIE');
+MiniVIE.configurePath();
+cd(currDir);
+
+% hrilabs path
+addpath(genpath('C:\GitHub\hrilabs'));
+
+% init myo
+hMyo = [];
+if useMyo
+    hMyo = init_myo();
+end
+
+% init udp
+udpActin = [];
+udpUnity = [];
+if sendToRobot
+    [udpActin, udpUnity] = init_cyton_udp(useActin, useUnity);
+end
+
+% robot model
+robotStruct = link_constants_cyton();
+
+% main figure
+hFig = figure('Name','Myo to Cyton Control','Position',[100 100 1200 800]);
+sgtitle('Myo to Cyton Teleoperation System');
+
+% robot subplot
+axRobot = subplot(2,2,[1 3],'Parent',hFig);
+axes(axRobot);
+handlesRobot = plot_cyton_robot();
+view(axRobot, -35, 25);
+grid(axRobot, 'on');
+title(axRobot, 'Cyton Robot');
+
+% emg subplot
+axEMG = subplot(2,2,2,'Parent',hFig);
+plot(axEMG, zeros(sampleWindow, length(chIds)), 'LineWidth', 1.2);
+xlabel(axEMG, 'Sample');
+ylabel(axEMG, 'EMG');
+title(axEMG, 'Filtered EMG Channels');
+legend(axEMG, arrayfun(@(x) sprintf('Ch %d', x), chIds, 'UniformOutput', false));
+grid(axEMG, 'on');
+
+% control state subplot
+axState = subplot(2,2,4,'Parent',hFig);
+axis(axState, [0 1 0 1]);
+set(axState, 'XTick', [], 'YTick', []);
+title(axState, 'Control State');
+
+hStateText = text(0.1, 0.6, 'Motion: Rest', 'FontSize', 14, 'Parent', axState);
+hJointText = text(0.1, 0.4, sprintf('Active Joint: %d', activeJoint), ...
+    'FontSize', 14, 'Parent', axState);
+hQText = text(0.1, 0.2, sprintf('q(%d): %.3f rad', activeJoint, q(activeJoint)), ...
+    'FontSize', 14, 'Parent', axState);
+
+drawnow;
+
+% initialize robot pose
+[A, ~] = get_kinematics(q, robotStruct);
+update_cyton_robot(handlesRobot, A);
+
+disp('starting myo to cyton control loop');
+disp('running safe test mode');
+
+while true
+    drawnow;
+
+    % get emg or run test mode
+    if useMyo
+        emgData = hMyo.getFilteredData(sampleWindow, chIds);
+        [motion, rmsData] = classify_myo_motion( ...
+            emgData, wristFlexThreshold, wristExtendThreshold);
+    else
+        emgData = zeros(sampleWindow, length(chIds));
+        rmsData = [0 0];
+
+        if q(activeJoint) > 0.8
+            motion = 'extend';
+        elseif q(activeJoint) < -0.8
+            motion = 'flex';
+        else
+            motion = 'flex';
+        end
+    end
+
+    % update emg plot
+    plot_emg_channels(axEMG, emgData, chIds);
+
+    % update candidate joint values
+    qCandidate = map_motion_to_cyton(q, motion, activeJoint, dq);
+    qCandidate = clamp_cyton_joints(qCandidate, qMin, qMax);
+
+    % update robot
+    [A, T] = get_kinematics(qCandidate, robotStruct);
+
+    if safe_cyton_pose(T, qCandidate)
+        q = qCandidate;
+        update_cyton_robot(handlesRobot, A);
+    end
+
+    % jacobian for later analysis
+    J = numeric_jacobian(q, robotStruct); %#ok<NASGU>
+
+    % send commands if enabled
+    if sendToRobot
+        send_cyton_command(udpActin, udpUnity, q, gripper, useActin, useUnity);
+    end
+
+    % update control state
+    plot_control_state(hStateText, hJointText, hQText, ...
+        motion, rmsData, activeJoint, q);
+
+    pause(0.05);
+end

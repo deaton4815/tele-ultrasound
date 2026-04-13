@@ -1,1 +1,2 @@
-# tele-ultrasound
+# GP2_MyoControlScripts
+# GP2_MyoControlScripts
