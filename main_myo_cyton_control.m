@@ -1,28 +1,31 @@
 clc; clear; close all;
 
 % user settings
-useActin = false;
+useAction = true;
 useUnity = false;
-useMyo = true;
-sendToRobot = false;
+useMyo = false;
+sendToRobot = true;
 
 chIds = [1 5];
 wristFlexThreshold = 0.10;
 wristExtendThreshold = 0.05;
 sampleWindow = 100;
-dq = 0.01;
+
+dt = 0.01;
+jointSpeed = 3.0; 
+gripSpeed = 0.5;
 
 % robot state
-qHome = zeros(1,7);
+qHome = zeros(1, 7);
 q = qHome;
-gripper = 0.0;
+gripper = 0.0; % close
 
-qMin = [-1.2 -0.8 -1.0 -1.0 -1.0 -1.0 -1.0];
-qMax = [ 1.2  0.8  1.0  1.0  1.0  1.0  1.0];
+% cannot figure out a way for this sim motors to match robot, so this home
+% state is hard coded
+qSimHome = [0 -1.55 0 0 0 -1.57 0];
 
 gripperMin = 0.0;
 gripperMax = 1.0;
-dGrip = 0.05;
 
 jointList = 1:7;
 jointIdx = 1;
@@ -43,13 +46,19 @@ if useMyo
     hMyo = init_myo();
 end
 
+if sendToRobot
+    [udpAction, udpUnity] = init_cyton_udp(useAction, useUnity);
+    send_cyton_command(udpAction, udpUnity, q, gripper, useAction, useUnity);
+end 
+
 % robot model
 robotStruct = link_constants_cyton();
 
 % main figure
 hFig = figure('Name','Myo to Cyton Control', ...
     'Position',[100 100 1300 800], ...
-    'WindowKeyPressFcn', @keyHandler);
+    'WindowKeyPressFcn', @keyDownHandler, ...
+    'WindowKeyReleaseFcn', @keyUpHandler);
 
 setappdata(hFig, 'jointIdx', jointIdx);
 setappdata(hFig, 'jointMoveCmd', 0);
@@ -70,7 +79,8 @@ title('Cyton Robot');
 
 % emg subplot
 subplot(2,2,2);
-plot(zeros(sampleWindow, length(chIds)));
+emgData = zeros(sampleWindow, length(chIds));
+plot(emgData);
 title('Filtered EMG Channels');
 grid on;
 
@@ -83,10 +93,11 @@ title('Control State');
 drawnow;
 
 % initialize robot
-[A, ~] = get_kinematics(q, robotStruct);
+[A, ~] = get_kinematics(q + qSimHome, robotStruct);
 update_cyton_robot(handlesRobot, A);
 
-disp('use arrow keys to move joints');
+disp('hold arrow keys for smooth motion');
+disp('n/p switch joints, up/down move, o/c gripper, r reset, q quit');
 
 while ishandle(hFig)
     drawnow;
@@ -125,23 +136,25 @@ while ishandle(hFig)
         rmsData = [0 0];
     end
 
-    % apply joint movement
+    % apply joint movement continuously while key is held
     if moveCmd ~= 0
-        q(activeJoint) = q(activeJoint) + dq * moveCmd;
-        q = clamp_cyton_joints(q, qMin, qMax);
-        setappdata(hFig,'jointMoveCmd',0);
+        q(activeJoint) = q(activeJoint) + jointSpeed * dt * moveCmd;
     end
 
-    % apply gripper
+    % apply gripper continuously while key is held
     if gripCmd ~= 0
-        gripper = gripper + dGrip * gripCmd;
+        gripper = gripper + gripSpeed * dt * gripCmd;
         gripper = min(max(gripper,gripperMin),gripperMax);
-        setappdata(hFig,'gripperCmd',0);
     end
 
     % update robot
-    [A, T] = get_kinematics(q, robotStruct);
+    [A, ~] = get_kinematics(q + qSimHome, robotStruct);
     update_cyton_robot(handlesRobot,A);
+
+    % send current pose to robot
+    if sendToRobot
+        send_cyton_command(udpAction, udpUnity, q, gripper, useAction, useUnity);
+    end
 
     % redraw emg subplot
     subplot(2,2,2);
@@ -166,14 +179,14 @@ while ishandle(hFig)
         text(0.05,0.34,sprintf('Motion: %s | RMS = [%.3f %.3f]', ...
             motion, rmsData(1), rmsData(2)),'FontSize',14);
     end
-    text(0.05,0.17,'arrows move | n/p switch','FontSize',11);
+    text(0.05,0.17,'hold up/down to move | n/p switch','FontSize',11);
 
-    pause(0.05);
+    pause(dt);
 end
 
 disp('stopped');
 
-function keyHandler(src,event)
+function keyDownHandler(src,event)
 switch lower(event.Key)
     case 'n'
         idx = getappdata(src,'jointIdx');
@@ -193,5 +206,14 @@ switch lower(event.Key)
         setappdata(src,'resetRequested',true);
     case 'q'
         setappdata(src,'stopRequested',true);
+end
+end
+
+function keyUpHandler(src,event)
+switch lower(event.Key)
+    case {'uparrow','downarrow'}
+        setappdata(src,'jointMoveCmd',0);
+    case {'o','c'}
+        setappdata(src,'gripperCmd',0);
 end
 end

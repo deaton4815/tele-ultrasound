@@ -1,12 +1,12 @@
-function [udpActin, udpUnity] = init_cyton_udp(useActin, useUnity)
+function [udpAction, udpUnity] = init_cyton_udp(useAction, useUnity)
 % Initialize UDP interfaces for Actin Viewer and Unity vCyton
 
-udpActin = [];
+udpAction = [];
 udpUnity = [];
 
-if useActin
-    udpActin = PnetClass(8889, 8888, '127.0.0.1');
-    udpActin.initialize();
+if useAction
+    udpAction = PnetClass(8889, 8888, '127.0.0.1');
+    udpAction.initialize();
     disp('[init_cyton_udp] Actin UDP initialized');
 end
 
