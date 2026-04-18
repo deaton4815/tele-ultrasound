@@ -1,0 +1,14 @@
+u = udpport("LocalPort", 5005);
+
+disp('Listening for hand landmarks...');
+
+while true
+    if u.NumBytesAvailable > 0
+        raw = readline(u);
+        landmarks = jsondecode(raw);  % 21x3 matrix [x, y, z]
+
+
+        disp(landmarks);
+    end
+    pause(0.001);
+end
