@@ -2,6 +2,13 @@ import cv2
 import mediapipe as mp
 import time
 
+import socket
+import json
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+MATLAB_IP = '127.0.0.1'
+MATLAB_PORT = 5005
+
 BaseOptions = mp.tasks.BaseOptions
 HandLandmarker = mp.tasks.vision.HandLandmarker
 HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
@@ -14,6 +21,13 @@ latest_result = None
 def result_callback(result: HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int):
     global latest_result
     latest_result = result
+
+    if result.hand_landmarks:
+        landmarks = []
+        for lm in result.hand_landmarks[0]:
+            landmarks.append([lm.x, lm.y, lm.z])
+        data = json.dumps(landmarks)
+        sock.sendto((data + '\n').encode(), (MATLAB_IP, MATLAB_PORT))
 
 # Create the landmarker
 options = HandLandmarkerOptions(
