@@ -18,7 +18,6 @@ env/
 .idea/
 
 # MediaPipe / model files
-*.task
 *.tflite
 
 # Misc
