@@ -10,7 +10,8 @@ classdef CytonIK
 
         % Tracking gains
         lambda double = 0.005;   % DLS damping
-        kGain double = 1.5;     % proportional gain on position error (tune for speed vs stability)
+        kGainPos double = 0.5;     % proportional gain on position error (tune for speed vs stability)
+        kGainOri double = 0;
         kNull double = 0.03;    % null-space gain
 
         qRefMatlab = zeros(7,1);
@@ -24,6 +25,11 @@ classdef CytonIK
 
         % jacobian
         jac double
+
+        % normalization references
+        xyzRPYInputRef  double    % first input received
+        xyzRPYRobotInit double    % robot's pose at start (from FK)
+        isInitialized   logical = false
 
     end
 
@@ -46,14 +52,32 @@ classdef CytonIK
         end
 
         function this = updateIK(this, xyzRPY)
-            % xyzRPY is [x; y; z; roll; pitch; yaw] — meters and radians
             if numel(xyzRPY) ~= 6
                 error('CytonIK: xyzRPY must have 6 elements.');
             end
+
+            % On first call, record references
+            if ~this.isInitialized
+                this.xyzRPYInputRef  = xyzRPY(:);
+                this.xyzRPYRobotInit = this.getRobotPose();
+                this.isInitialized   = true;
+            end
+
+            % Position target: robot init + displacement from input init
+            targetXYZ = this.xyzRPYRobotInit(1:3) + (xyzRPY(1:3) - this.xyzRPYInputRef(1:3));
+
+            % Orientation target: robot init + angular displacement from input init
+            % Wrap to [-pi, pi] to prevent windup
+            deltaRPY   = wrapToPi(xyzRPY(4:6) - this.xyzRPYInputRef(4:6));
+            targetRPY  = this.xyzRPYRobotInit(4:6) + deltaRPY;
+
+            target = [targetXYZ; targetRPY];
+
             this = this.setNumericJacobian();
-            e    = this.computeTaskError(xyzRPY);       % now 6x1
-            Jinv = this.computeDampedPseudoinverse();   % now 7x6
+            e    = this.computeTaskError(target);
+            Jinv = this.computeDampedPseudoinverse();
             dq   = this.computeJointUpdate(Jinv, e);
+
             this.qMatlab = this.qMatlab + dq;
             this = this.setActinJoints();
             this = this.setMatlabJoints();
@@ -151,6 +175,21 @@ classdef CytonIK
                 0        0                0                 1;];
         end
 
+        function xyzRPY = getRobotPose(this)
+            [~, T] = this.getKinematics();
+
+            % Extract position
+            p = T{end}(1:3, 4);
+
+            % Extract RPY (XYZ convention) from rotation matrix
+            R = T{end}(1:3, 1:3);
+            roll  = atan2(R(3,2), R(3,3));
+            pitch = atan2(-R(3,1), sqrt(R(3,2)^2 + R(3,3)^2));
+            yaw   = atan2(R(2,1), R(1,1));
+
+            xyzRPY = [p; roll; pitch; yaw];
+        end
+
         function this = setNumericJacobian(this)
 
             robotStruct = this.robot;
@@ -227,7 +266,7 @@ classdef CytonIK
             eOri = Rc * eOri_body;  % rotate error into world frame
 
             % Stack into 6x1 task error
-            e = [eTrans; eOri];
+            e = [this.kGainPos * eTrans; this.kGainOri * eOri];
         end
 
         function Jinv = computeDampedPseudoinverse(this)
@@ -238,13 +277,17 @@ classdef CytonIK
         end
 
         function dq = computeJointUpdate(this, Jinv, e)
-            dqTask = Jinv * (this.kGain * e);
-
-            % Null space now has 1 free DOF (7 joints - 6 task constraints)
-            N      = eye(7) - Jinv * this.jac;
+            dqTask = Jinv * e;   % kGain already applied in e
+            Jp     = this.jac;
+            N      = eye(7) - Jinv * Jp;
             dqNull = N * this.kNull * (this.qRefMatlab - this.qMatlab);
+            dq     = dqTask + dqNull;
 
-            dq = dqTask + dqNull;
+            % Hard cap: no joint moves more than maxStep radians per frame
+            maxStep = 0.05;   % ~3 degrees per frame
+            if max(abs(dq)) > maxStep
+                dq = dq * (maxStep / max(abs(dq)));
+            end
         end
     end
 
