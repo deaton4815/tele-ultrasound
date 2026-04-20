@@ -1,0 +1,71 @@
+classdef CytonEpsilon1500Robot
+
+    properties (Constant, Access = private)
+
+        % Link length constants for Cyton
+        %     % Ref pg 106 Table 3.6 Spong
+        %     A(:,:,1) = DH(0,pi/2,d1,theta(1));
+        %     A(:,:,2) = DH(a2,0,0,theta(2));
+        %     A(:,:,3) = DH(a3,0,0,theta(3));
+        %     % Ref pg 87 Table 3.3 Spong
+        %     A(:,:,4) = DH(0,-pi/2,0,theta(4));
+        %     A(:,:,5) = DH(0,pi/2,0,theta(5));
+        %     A(:,:,6) = DH(0,0,d6,theta(6));
+
+        d1 double = 0.2;
+        d2 double = 0;
+        d3 double = 0;
+        d4 double = 0;
+        d5 double = 0;
+        d6 double = 0;
+        d7 double = 0.09;
+
+        a1 double = 0;
+        a2 double = 0.135;
+        a3 double = 0.125;
+        a4 double = 0.125;
+        a5 double = 0.135;
+        a6 double = 0;
+        a7 double = 0;
+
+        % MSF: corrected to match the Cyton axes, 03/11/2019; negated 1 & 6
+        alpha1 double = -pi/2;
+        alpha2 double = -pi/2;
+        alpha3 double = pi/2;
+        alpha4 double = -pi/2;
+        alpha5 double = pi/2;
+        alpha6 double = -pi/2;
+        alpha7 double = 0;
+
+    end
+
+    properties (Access = private)
+        dFull double
+        aFull double
+        alphaFull double
+    end
+
+    properties (Access )
+
+    methods
+
+        function this = CytonEpsilon1500Robot
+            this.dFull = [this.d1, this.d2, this.d3, this.d4, this.d5, this.d6, this.d7];
+            this.aFull = [this.a1, this.a2, this.a3, this.a4, this.a5, this.a6, this.a7];
+            this.alphaFull = [this.alpha1, this.alpha2, this.alpha3, this.alpha4, this.alpha5, this.alpha6, this.alpha7];
+        end
+
+        function robotStruct = buildRobot(this)
+
+            % package this up into a struct for returning
+            robotStruct = struct();
+            robotStruct.numJoints = 7;
+            robotStruct.d = d;
+            robotStruct.a = a;
+            robotStruct.alpha = alpha;
+        end
+    end
+
+end
+
+
