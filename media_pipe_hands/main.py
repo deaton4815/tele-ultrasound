@@ -1,11 +1,11 @@
 import cv2
 import mediapipe as mp
 import time
-
 import socket
 import json
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.setblocking(False)  # Non-blocking so send never freezes the thread
 MATLAB_IP = '127.0.0.1'
 MATLAB_PORT = 5005
 
@@ -15,21 +15,12 @@ HandLandmarkerOptions = mp.tasks.vision.HandLandmarkerOptions
 HandLandmarkerResult = mp.tasks.vision.HandLandmarkerResult
 VisionRunningMode = mp.tasks.vision.RunningMode
 
-# Global variable to store the latest result
 latest_result = None
 
 def result_callback(result: HandLandmarkerResult, output_image: mp.Image, timestamp_ms: int):
     global latest_result
-    latest_result = result
+    latest_result = result  # Just store — don't send from callback thread
 
-    if result.hand_landmarks:
-        landmarks = []
-        for lm in result.hand_landmarks[0]:
-            landmarks.append([lm.x, lm.y, lm.z])
-        data = json.dumps(landmarks)
-        sock.sendto((data + '\n').encode(), (MATLAB_IP, MATLAB_PORT))
-
-# Create the landmarker
 options = HandLandmarkerOptions(
     base_options=BaseOptions(model_asset_path='hand_landmarker.task'),
     running_mode=VisionRunningMode.LIVE_STREAM,
@@ -38,27 +29,34 @@ options = HandLandmarkerOptions(
 )
 
 with HandLandmarker.create_from_options(options) as landmarker:
-    cap = cv2.VideoCapture(0)  # 0 = default webcam
+    cap = cv2.VideoCapture(0)
 
     while cap.isOpened():
         ret, frame = cap.read()
         if not ret:
             break
 
-        # Convert frame to MediaPipe image and run detection
         timestamp_ms = int(time.time() * 1000)
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
         landmarker.detect_async(mp_image, timestamp_ms)
 
-        # Print landmarks if available
+        # Consume and clear latest_result in the main loop
         if latest_result and latest_result.hand_landmarks:
-            for landmark in latest_result.hand_landmarks[0]:
-                print(f"x: {landmark.x:.3f}, y: {landmark.y:.3f}, z: {landmark.z:.3f}")
+            landmarks = []
+            for lm in latest_result.hand_landmarks[0]:
+                landmarks.append([lm.x, lm.y, lm.z])
+                print(f"x: {lm.x:.3f}, y: {lm.y:.3f}, z: {lm.z:.3f}")
 
-        # Show the frame
+            data = json.dumps(landmarks)
+            try:
+                sock.sendto((data + '\n').encode(), (MATLAB_IP, MATLAB_PORT))
+            except BlockingIOError:
+                pass  # Drop the packet if the buffer is momentarily full — better than blocking
+
+            latest_result = None  # Clear after sending
+
         cv2.imshow('Hand Landmarker', frame)
 
-        # Press 'q' to quit
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
