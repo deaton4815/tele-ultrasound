@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Virtual environment
+venv/
+.venv/
+.env/
+env/
+
+# PyCharm
+.idea/
+
+# MediaPipe / model files
+*.tflite
+
+# Misc
+.DS_Store
+Thumbs.db
+
+# matlab
+*.asv
