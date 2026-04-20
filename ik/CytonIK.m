@@ -45,14 +45,15 @@ classdef CytonIK
 
         end
 
-        function this = updateIK(this, xyzR)
-            % xyzR is [x; y; z; R] — position in meters, roll in radians
-
+        function this = updateIK(this, xyzRPY)
+            % xyzRPY is [x; y; z; roll; pitch; yaw] — meters and radians
+            if numel(xyzRPY) ~= 6
+                error('CytonIK: xyzRPY must have 6 elements.');
+            end
             this = this.setNumericJacobian();
-            e    = this.computeTaskError(xyzR);       % 4x1 error
-            Jinv = this.computeDampedPseudoinverse(); % now 7x4
+            e    = this.computeTaskError(xyzRPY);       % now 6x1
+            Jinv = this.computeDampedPseudoinverse();   % now 7x6
             dq   = this.computeJointUpdate(Jinv, e);
-
             this.qMatlab = this.qMatlab + dq;
             this = this.setActinJoints();
             this = this.setMatlabJoints();
@@ -200,38 +201,47 @@ classdef CytonIK
 
         %%%%%%%%%% ikine helpers %%%%%%%%%%
 
-        function e = computeTaskError(this, xyzR)
+        function e = computeTaskError(this, xyzRPY)
             [~, T] = this.getKinematics();
 
             % Position error (3x1)
-            pCurr = T{end}(1:3, 4);
-            eTrans = xyzR(1:3) - pCurr;
+            pCurr  = T{end}(1:3, 4);
+            eTrans = xyzRPY(1:3) - pCurr;
 
-            % Roll error: extract current roll from end-effector rotation matrix
-            % Using XYZ convention: roll = atan2(R32, R33)
-            R = T{end}(1:3, 1:3);
-            rollCurr = atan2(R(3,2), R(3,3));
-            eRoll = xyzR(4) - rollCurr;
+            % Orientation error (3x1)
+            % Build desired rotation matrix from input RPY (XYZ convention)
+            r = xyzRPY(4);  p = xyzRPY(5);  y = xyzRPY(6);
+            Rd = [cos(y)*cos(p), cos(y)*sin(p)*sin(r)-sin(y)*cos(r), cos(y)*sin(p)*cos(r)+sin(y)*sin(r);
+                sin(y)*cos(p), sin(y)*sin(p)*sin(r)+cos(y)*cos(r), sin(y)*sin(p)*cos(r)-cos(y)*sin(r);
+                -sin(p),        cos(p)*sin(r),                       cos(p)*cos(r)];
 
-            % Stack into 4x1 task error
-            e = [eTrans; eRoll];
+            % Current rotation matrix
+            Rc = T{end}(1:3, 1:3);
+
+            % Orientation error via skew-symmetric part of R_error = Rc' * Rd
+            % eOri = vex(R_error - R_error') / 2, expressed in world frame as Rc * eOri_body
+            Re = Rc' * Rd;
+            eOri_body = 0.5 * [Re(3,2) - Re(2,3);
+                Re(1,3) - Re(3,1);
+                Re(2,1) - Re(1,2)];
+            eOri = Rc * eOri_body;  % rotate error into world frame
+
+            % Stack into 6x1 task error
+            e = [eTrans; eOri];
         end
 
         function Jinv = computeDampedPseudoinverse(this)
-            % Use position rows + roll row of Jacobian
-            Jp = this.jac([1,2,3,4], :);   % 4x7
-
-            % Damped least-squares: J^T * inv(J*J^T + lambda^2 * I)
-            JpT  = Jp';
-            Jinv = JpT / (Jp * JpT + this.lambda^2 * eye(4));  % eye(4) not eye(3)
+            % Full 6x7 Jacobian — all rows
+            Jp  = this.jac;   % 6x7
+            JpT = Jp';
+            Jinv = JpT / (Jp * JpT + this.lambda^2 * eye(6));  % 7x6
         end
 
         function dq = computeJointUpdate(this, Jinv, e)
             dqTask = Jinv * (this.kGain * e);
 
-            Jp = this.jac([1,2,3,4], :);
-            N  = eye(7) - Jinv * Jp;   % null space now has 3 free DOF (7-4)
-
+            % Null space now has 1 free DOF (7 joints - 6 task constraints)
+            N      = eye(7) - Jinv * this.jac;
             dqNull = N * this.kNull * (this.qRefMatlab - this.qMatlab);
 
             dq = dqTask + dqNull;

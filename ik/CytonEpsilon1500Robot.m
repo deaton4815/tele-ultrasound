@@ -61,7 +61,7 @@ classdef CytonEpsilon1500Robot
 
         function this = setRobot(this)
             % package this up into a struct for returning
-            this.robot = struct('numJoints', 7, 'd', d, 'a', a, 'alpha', alpha);
+            this.robot = struct('numJoints', 7, 'd', this.dFull, 'a', this.aFull, 'alpha', this.alphaFull);
         end
     end
 
