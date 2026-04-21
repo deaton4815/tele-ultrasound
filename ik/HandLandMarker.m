@@ -1,9 +1,5 @@
 classdef HandLandMarker < handle
 
-    properties (Constant, Access = private)
-        idxLandmark double = 6 % index finger MCP
-    end
-
     properties (Access = private)
         u
         xyPrev double = [0, 0]
@@ -31,7 +27,7 @@ classdef HandLandMarker < handle
             try
                 raw = readline(this.u);
                 coords = jsondecode(raw);
-                xy = coords(this.idxLandmark, 1:2);
+                xy = coords(:);
                 this.xyPrev = xy;   % now persists because handle class
             catch
                 xy = this.xyPrev;
