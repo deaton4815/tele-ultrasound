@@ -5,8 +5,11 @@ classdef CytonIK
         actinOffset double = [pi/2; pi/2; 0; 0; 0; pi/2; 0];
 
         % joint limits
-        qMin double = [-2.6; -2.6; -2.6; -2.6; -2.6; -2.6; -2.6];
-        qMax double = [ 2.6;  2.6;  2.6;  2.6;  2.6;  2.6;  2.6];
+        % qMin double = [-2.6; -2.6; -2.6; -2.6; -2.6; -2.6; -2.6];
+        % qMax double = [ 2.6;  2.6;  2.6;  2.6;  2.6;  2.6;  2.6];
+
+        qMin double = [-2.6; -2.6; -2.6; -2.6; -2.6; 0; -2.6];
+        qMax double = [ 2.6;  2.6;  2.6;  0;  2.6;  2.6;  2.6];
 
         % Tracking gains
         lambda double = 0.005;   % DLS damping
@@ -22,7 +25,6 @@ classdef CytonIK
 
         % robot struct
         robot struct
-
         % jacobian
         jac double
 

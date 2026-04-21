@@ -14,10 +14,10 @@ if isActin
     udp = CytonUDP();
 end
 
-q_initial_actin = zeros(7, 1);  % Initialize joint angles for the actuator
+q_initial_actin = [.33, -0.74, 0, -1.51, 0, 0.768, 0];  % Initialize joint angles for the actuator
 z_fixed = 0.5;                   % Fixed z-coordinate for the IK calculation
 roll_fixed = 0;
-pitch_fixed = 0;
+pitch_fixed = pi/2;
 yaw_fixed = 0;
 gripper_fixed = 0.01;
 dt = 0.1;                        % Time step for the loop
@@ -25,10 +25,14 @@ dt = 0.1;                        % Time step for the loop
 lm  = HandLandMarker();
 ik  = CytonIK(q_initial_actin);
 
+if isActin
+    udp.moveActinCyton(ik.qActin, gripper_fixed);
+end
+
 cal  = CameraCalibration(lm);
 cal  = cal.runCalibration();
 
-msg = sprintf('Place your hand on the bottom-left corner of the box to start the procedure');
+msg = sprintf('Place your hand to the center of the  box to start the procedure');
 h   = msgbox(msg, 'Ultrasound', 'help', 'modal');
 uiwait(h);   % blocks until user closes the dialog
 

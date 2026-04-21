@@ -2,8 +2,9 @@ classdef CameraCalibration < handle
 
     properties (Constant, Access = private)
 
-        rectWidthM  double = 0.4
-        rectHeightM double = 0.25
+        % cardboard box dimensions
+        rectWidthM  double = 0.39
+        rectHeightM double = 0.285
 
         sampsPerCorner double = 30   % average over N frames to reduce noise
     end
@@ -86,7 +87,7 @@ classdef CameraCalibration < handle
                 warning('Rerun calibration.');
             end
 
-            this.scaleX = this.rectWidthM  / mpWidth;
+            this.scaleX = this.rectWidthM / mpWidth;
             this.scaleY = this.rectHeightM / mpHeight;
         end
 

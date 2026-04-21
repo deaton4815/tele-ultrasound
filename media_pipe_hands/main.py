@@ -56,7 +56,7 @@ with HandLandmarker.create_from_options(options) as landmarker:
         if current_result and current_result.hand_landmarks:
             lm_index_mcp = current_result.hand_landmarks[0][5]
 
-            x = lm_index_mcp.x
+            x = 1 - lm_index_mcp.x
             y = lm_index_mcp.y
             if count % 100 == 0:
                 print(f"x: {x:.3f}, y: {y:.3f}")

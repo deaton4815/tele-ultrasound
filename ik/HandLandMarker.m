@@ -25,7 +25,10 @@ classdef HandLandMarker < handle
                 pause(0.001);
             end
             try
-                raw = readline(this.u);
+                % flush messages to get most recent message
+                while this.u.NumBytesAvailable > 0
+                    raw = readline(this.u);
+                end
                 coords = jsondecode(raw);
                 xy = coords(:);
                 this.xyPrev = xy;   % now persists because handle class
