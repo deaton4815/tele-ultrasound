@@ -61,7 +61,7 @@ with HandLandmarker.create_from_options(options) as landmarker:
             if count % 100 == 0:
                 print(f"x: {x:.3f}, y: {y:.3f}")
 
-            data = json.dumps([x, y, lm_index_mcp.z])
+            data = json.dumps([x, y])
             try:
                 sock.sendto((data + '\n').encode(), (MATLAB_IP, MATLAB_PORT))
             except BlockingIOError:
