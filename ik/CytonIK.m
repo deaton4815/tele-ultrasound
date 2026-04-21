@@ -65,6 +65,11 @@ classdef CytonIK
                 this.isInitialized   = true;
             end
 
+            % Orientation target: robot init + angular displacement from input init
+            % Wrap to [-pi, pi] to prevent windup
+            deltaRPY   = wrapToPi(xyzRPY(4:6) - this.xyzRPYInputRef(4:6));
+            targetRPY  = this.xyzRPYRobotInit(4:6) + deltaRPY;
+
             % Position target: robot init + displacement from input init
             x = xyzRPY(1);
             y = xyzRPY(2);
@@ -74,7 +79,7 @@ classdef CytonIK
             yaw = xyzRPY(6);
 
             Txy = transl(x, y, 0);
-            Tz = transl(z);
+            Tz = transl(0, 0, z);
             R = rpy2tr(roll, 0, 0);
 
             % translation
@@ -84,11 +89,6 @@ classdef CytonIK
             xyzRPY(3) = Txyz(3,4);
           
             targetXYZ = this.xyzRPYRobotInit(1:3) + (xyzRPY(1:3) - this.xyzRPYInputRef(1:3));
-            
-            % Orientation target: robot init + angular displacement from input init
-            % Wrap to [-pi, pi] to prevent windup
-            deltaRPY   = wrapToPi(xyzRPY(4:6) - this.xyzRPYInputRef(4:6));
-            targetRPY  = this.xyzRPYRobotInit(4:6) + deltaRPY;
 
             target = [targetXYZ; targetRPY];
 

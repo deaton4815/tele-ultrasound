@@ -17,7 +17,7 @@ end
 q_initial_actin = [.33, -0.74, 0, -1.51, 0, 0.768, 0];  % Initialize joint angles for the actuator
 z_fixed = 0.5;                   % Fixed z-coordinate for the IK calculation
 roll_fixed = 0;
-pitch_fixed = pi/2;
+pitch_fixed = 0;
 yaw_fixed = 0;
 gripper_fixed = 0.01;
 dt = 0.1;                        % Time step for the loop
