@@ -26,14 +26,18 @@ lm  = HandLandMarker();
 ik  = CytonIK(q_initial_actin);
 
 cal  = CameraCalibration(lm);
-cal  = cal.runCalibration();  
+cal  = cal.runCalibration();
+
+msg = sprintf('Place your hand on the bottom-left corner of the box to start the procedure');
+h   = msgbox(msg, 'Ultrasound', 'help', 'modal');
+uiwait(h);   % blocks until user closes the dialog
 
 while true
     xy = lm.getXY();           % blocks until data arrives
     [xM, yM] = cal.toMeters(xy);
     % get z from force sensor
     % get rotation from myoband
-    ik = ik.updateIK([xy(1); xy(2); z_fixed; roll_fixed; pitch_fixed; yaw_fixed]);
+    ik = ik.updateIK([xM; yM; z_fixed; roll_fixed; pitch_fixed; yaw_fixed]);
     disp(ik.qActin);
     if isActin
         udp.moveActinCyton(ik.qActin, gripper_fixed);
