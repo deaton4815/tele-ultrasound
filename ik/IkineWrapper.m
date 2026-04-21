@@ -25,9 +25,12 @@ dt = 0.1;                        % Time step for the loop
 lm  = HandLandMarker();
 ik  = CytonIK(q_initial_actin);
 
+cal  = CameraCalibration(lm);
+cal  = cal.runCalibration();  
 
 while true
     xy = lm.getXY();           % blocks until data arrives
+    [xM, yM] = cal.toMeters(xy);
     % get z from force sensor
     % get rotation from myoband
     ik = ik.updateIK([xy(1); xy(2); z_fixed; roll_fixed; pitch_fixed; yaw_fixed]);
