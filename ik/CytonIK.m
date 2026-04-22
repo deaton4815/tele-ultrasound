@@ -14,7 +14,7 @@ classdef CytonIK
         % Tracking gains
         lambda double = 0.005;   % DLS damping
         kGainPos double = 0.5;     % proportional gain on position error (tune for speed vs stability)
-        kGainOri double = 0;
+        kGainOri double = 0.5;
         kNull double = 0.03;    % null-space gain
 
         qRefMatlab = zeros(7,1);

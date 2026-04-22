@@ -13,7 +13,7 @@ if isActin
     cd(currDir);
     udp = CytonUDP();
 end
-
+% q_initial_actin = zeros(1,7);
 q_initial_actin = [.33, -0.74, 0, -1.51, 0, 0.768, 0];  % Initialize joint angles for the actuator
 z_fixed = 0.5;                   % Fixed z-coordinate for the IK calculation
 roll_fixed = 0;
