@@ -1,4 +1,5 @@
-function q_7 = orientation(hMyo, q, neutral_gyro, dt)
+%function q_7 = orientation(hMyo, q, neutral_gyro, dt)
+function q_7 = orientation(hMyo, roll_in, neutral_gyro, dt)
     gyroDeg = hMyo.Gyroscope(:)';
     kB = 1.5;
     
@@ -13,8 +14,10 @@ function q_7 = orientation(hMyo, q, neutral_gyro, dt)
     g_rad = deg2rad(g);
 
     % Calculate new position
-    raw_q7 = q(7) + g_rad * dt; 
+    %raw_q7 = q(7) + g_rad * dt; 
+    raw_roll = roll_in + g_rad * dt; 
     
-    q_7 = atan2(sin(raw_q7), cos(raw_q7));
+    %q_7 = atan2(sin(raw_q7), cos(raw_q7));
+    q_7 = atan2(sin(raw_roll), cos(raw_roll));
 
 end

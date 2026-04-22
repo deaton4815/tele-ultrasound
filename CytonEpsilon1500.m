@@ -222,12 +222,12 @@ classdef CytonEpsilon1500
         function T = fkine(this, q)
             q = this.getVerifiedJointAngles(q);
             T = this.robot.fkine(q);
-            this.plotForwardKinematics(q);
+            % this.plotForwardKinematics(q);
         end
 
         % Inverse Kinematics
-        function q = ikine(this, p)
-            T = SE3(p);
+        function q = ikine(this, T)
+            % T = SE3(p);
             q = this.robot.ikine(T);
 
             % plot

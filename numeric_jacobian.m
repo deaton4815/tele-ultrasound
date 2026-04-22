@@ -1,3 +1,4 @@
+
 function jac = numeric_jacobian(q, robotStruct)
 
 % Kinematics for the Elbow Robot
