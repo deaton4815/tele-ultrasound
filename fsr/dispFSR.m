@@ -1,6 +1,7 @@
 function dispFSR()
 
-a = arduino('COM11', 'Uno');
+a = arduino('COM5', 'Uno');
+disp('Arduino Uno detected')
 
 while true
     voltage = readVoltage(a, 'A0');
