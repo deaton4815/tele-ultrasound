@@ -8,7 +8,7 @@ import threading
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sock.setblocking(False)
 MATLAB_IP = '127.0.0.1'
-MATLAB_PORT = 5005
+MATLAB_PORT = 5010
 
 BaseOptions = mp.tasks.BaseOptions
 HandLandmarker = mp.tasks.vision.HandLandmarker
@@ -77,7 +77,8 @@ with HandLandmarker.create_from_options(options) as landmarker:
             cv2.putText(frame, f"({x:.3f}, {y:.3f})", (px + 10, py - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 3)
 
-        cv2.imshow('Hand Landmarker', frame)
+        frame_large = cv2.resize(frame, None, fx=1.5, fy=1.5)
+        cv2.imshow('Hand Landmarker', frame_large)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
