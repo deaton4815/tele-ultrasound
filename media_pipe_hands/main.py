@@ -67,6 +67,16 @@ with HandLandmarker.create_from_options(options) as landmarker:
             except BlockingIOError:
                 pass
 
+            # ADD POINT ON THE KNUCKLE
+            h, w, _ = frame.shape
+            px = int((1 - x) * w)
+            py = int(y * h)
+            cv2.circle(frame, (px, py), 8, (0, 255, 0), -1)
+
+            # ADD COORDINATES TEXT (BIGGER)
+            cv2.putText(frame, f"({x:.3f}, {y:.3f})", (px + 10, py - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 3)
+
         cv2.imshow('Hand Landmarker', frame)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
