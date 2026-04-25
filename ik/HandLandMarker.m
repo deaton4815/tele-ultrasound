@@ -8,7 +8,7 @@ classdef HandLandMarker < handle
     methods
 
         function this = HandLandMarker()
-            this.u = udpport("LocalPort", 5005);
+            this.u = udpport("LocalPort", 5010);
             disp('Listening for hand landmarks');
 
         end
