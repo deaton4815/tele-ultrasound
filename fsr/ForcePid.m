@@ -1,35 +1,32 @@
-classdef ForcePID < handle
+classdef ForcePid < handle
     properties
-        Kp = 0
+        Kp = 0.8
         Ki = 0
         Kd = 0
 
-        dt = 0.01
         integral = 0
         prevError = 0
 
-        outputLimit = inf
+        outputLimit = 0.02
         integralLimit = inf
     end
 
     methods
-        function obj = ForcePID(Kp, Ki, Kd, dt)
-            obj.Kp = Kp;
-            obj.Ki = Ki;
-            obj.Kd = Kd;
-            obj.dt = dt;
-        end
 
-        function u = update(obj, error)
+        function u = update(obj, error, dt)
+
+            disp("error = ");
+            disp(error);
+
             % Accumulate integral error
-            obj.integral = obj.integral + error * obj.dt;
+            obj.integral = obj.integral + error * dt;
 
             % Anti-windup clamp
             obj.integral = max(min(obj.integral, obj.integralLimit), ...
                                -obj.integralLimit);
 
             % Derivative term
-            derivative = (error - obj.prevError) / obj.dt;
+            derivative = (error - obj.prevError) / dt;
 
             % PID output
             u = obj.Kp * error + ...
@@ -37,6 +34,8 @@ classdef ForcePID < handle
                 obj.Kd * derivative;
 
             % Output clamp
+            disp("u = ");
+            disp(u);
             u = max(min(u, obj.outputLimit), -obj.outputLimit);
 
             obj.prevError = error;

@@ -37,8 +37,11 @@ classdef CytonIK
 
     properties(SetAccess = private)
         % current joint values
-        qActin double
         qMatlab double
+    end
+
+    properties
+        qActin double
     end
 
     methods
@@ -87,7 +90,7 @@ classdef CytonIK
             xyzRPY(1) = Txyz(1,4);
             xyzRPY(2) = Txyz(2,4);
             xyzRPY(3) = Txyz(3,4);
-          
+
             targetXYZ = this.xyzRPYRobotInit(1:3) + (xyzRPY(1:3) - this.xyzRPYInputRef(1:3));
 
             target = [targetXYZ; targetRPY];
