@@ -1,28 +1,24 @@
-function main_cyton_control()
-%% Main script: Hand IK + Myo gripper/rotation together
+function main_cyton_control(myDataFilename)
+%%%%% Main script: Hand IK + Myo gripper/rotation together %%%%%
 
-clear; clc;
+%%%% Inputs %%%%%
+if nargin < 1
+myDataFilename = 'Training Data/USER_20260501_180659.trainingData';
+end
 
-%%% Force sensor init %%%%
+%% Force sensor init
 aOperator = arduino('COM5', 'Uno');
 aRobot = arduino('COM7', 'Uno');
-
-%% MiniVIE path
-currDir = cd;
-cd('C:\GitHub\MiniVIE');
-MiniVIE.configurePath();
-cd(currDir);
 
 %% Main robot initial state
 q_initial_actin = [.33, -0.74, 0, -1.51, 0, 0.768, 0];
 
 z = 0.5;
-
 roll_cmd  = 0;
 pitch_cmd = 0;
 yaw_cmd   = 0;
 
-dt = 0.1;
+tPause = 0.1;
 
 %% Gripper settings
 gripMin = 0.00;
@@ -31,7 +27,6 @@ gripStep = 0.003;
 grip = 0.01;
 
 %% Myo classifier setup
-myDataFilename = 'WIMBISH.trainingData';
 
 hData = PatternRecognition.TrainingData();
 hData.loadTrainingData(myDataFilename);
@@ -58,6 +53,7 @@ ik = CytonIK(q_initial_actin);
 
 cal = CameraCalibration(lm);
 cal = cal.runCalibration();
+disp('Calibration Complete!');
 
 %% Initialize Actin / Cyton UDP
 udp = CytonUDP();
@@ -82,7 +78,9 @@ disp('Stop')
 %% Start/stop form
 StartStopForm([]);
 
-tLast = tic;
+gripperControlTime = 10;   % seconds
+tStart = tic;
+tLast  = tic;
 
 disp('Running hand IK + Myo gripper/rotation together.');
 disp('Close StartStopForm to stop.');
@@ -103,6 +101,7 @@ zPID = ForcePid();
 while StartStopForm
     drawnow;
 
+    elapsedTime = toc(tStart);
     loopDt = toc(tLast);
     tLast = tic;
 
@@ -119,72 +118,61 @@ while StartStopForm
     %% -----------------------------
     % 2. Myo EMG controls gripper
     %% -----------------------------
-    % emgData = hMyo.getData(hLda.NumSamplesPerWindow, 1:8);
-    % features2D = hLda.extractfeatures(emgData);
-    % [classDecision, ~] = hLda.classify(reshape(features2D', [], 1));
-    % className = classNames{classDecision};
-    % 
-    % if contains(lower(className), 'open')
-    %     grip = min(grip + gripStep, gripMax);
-    % else
-    %     grip = max(grip - gripStep, gripMin);
-    % end
+    if elapsedTime < gripperControlTime
+        emgData = hMyo.getData(hLda.NumSamplesPerWindow, 1:8);
+        features2D = hLda.extractfeatures(emgData);
+        [classDecision, ~] = hLda.classify(reshape(features2D', [], 1));
+        className = classNames{classDecision};
+        
+        if contains(lower(className), 'open')
+            grip = min(grip + gripStep, gripMax);
+        else
+            grip = max(grip - gripStep, gripMin);
+        end
+        udp.moveActinCyton(q_initial_actin, grip);
 
-    %% -----------------------------
-    % 3. Myo gyro controls rotation
-    %% -----------------------------
-    % hMyo.getData();
-    % 
-    % gyroDeg = hMyo.Gyroscope(:);
-    % gyroDeg(abs(gyroDeg) < gyroDeadband) = 0;
-    % 
-    % yaw_cmd = yaw_cmd + yawGain * gyroDeg(3) * loopDt;
-    % 
-    % yaw_cmd = max(min(yaw_cmd, pi), -pi);
-
-
-    %%%%%%%% Get force diff %%%%%%%%
-    vOperator = readVoltage(aOperator, 'A0');
-    vRobot = readVoltage(aRobot, 'A0');
-    vErr = vOperator - vRobot;
-
-    zUpdate = zPID.update(vErr, loopDt);
-    z = z - zUpdate;
-
-    %% -----------------------------
-    % 4. IK update
-    %% -----------------------------
-    ik = ik.updateIK([xM; yM; z; roll_cmd; pitch_cmd; yaw_cmd]);
-
-    hMyo.getData();
-    gyroDeg = hMyo.Gyroscope(:)';
-    kB = 3;
+    else
+        grip = gripMin;
+        %%%%%%%% Get force diff %%%%%%%%
+        vOperator = readVoltage(aOperator, 'A0');
+        vRobot = readVoltage(aRobot, 'A0');
+        vErr = vOperator - vRobot;
     
-    % Subtract neutral position for zeroing
-    g = g + gyroDeg(1) - neutral_gyro(1);
-    g = max(min(g, gLimHigh), gLimLow);
+        zUpdate = zPID.update(vErr, loopDt);
+        z = z - zUpdate;
     
-    % deadband to reduce drift
-    if abs(g) < 1.0
-        g = 0;
+        %% -----------------------------
+        % 4. IK update
+        %% -----------------------------
+        ik = ik.updateIK([xM; yM; z; roll_cmd; pitch_cmd; yaw_cmd]);
+    
+        hMyo.getData();
+        gyroDeg = hMyo.Gyroscope(:)';
+        kB = 3;
+        
+        % Subtract neutral position for zeroing
+        g = g + gyroDeg(1) - neutral_gyro(1);
+        g = max(min(g, gLimHigh), gLimLow);
+        
+        % deadband to reduce drift
+        if abs(g) < 1.0
+            g = 0;
+        end
+    
+        g_rad = deg2rad(g);
+    
+        % Calculate new position
+        raw_q7 = ik.qActin(7) + g_rad * loopDt; 
+        
+        q_7 = atan2(sin(raw_q7), cos(raw_q7));
+    
+        ik.qActin(7) = q_7*kB;
+    
+        %% -----------------------------
+        % 5. Send one combined command
+        %% -----------------------------
+        udp.moveActinCyton(ik.qActin, grip);
     end
-
-    g_rad = deg2rad(g);
-
-    % Calculate new position
-    raw_q7 = ik.qActin(7) + g_rad * loopDt; 
-    
-    q_7 = atan2(sin(raw_q7), cos(raw_q7));
-
-    ik.qActin(7) = q_7*kB;
-
-    %% -----------------------------
-    % 5. Send one combined command
-    %% -----------------------------
-    udp.moveActinCyton(ik.qActin, grip);
-
-    % fprintf('\rGrip=%.3f | Class=%s | xyz=[%.2f %.2f %.2f] | yaw=%.2f | gyroZ=%.1f', ...
-    %     grip, className, xM, yM, z_fixed, yaw_cmd, gyroDeg(3));
 
     pause(0.1);
 end
