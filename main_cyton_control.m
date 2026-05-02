@@ -3,7 +3,7 @@ function main_cyton_control(myDataFilename)
 
 %%%% Inputs %%%%%
 if nargin < 1
-myDataFilename = 'Training Data/NEW_USER_20260501_211053.trainingData';
+    myDataFilename = 'Training Data/NEW_USER_20260501_211053.trainingData';
 end
 
 %% Force sensor init
@@ -95,6 +95,16 @@ neutral_gyro = neutral_gyro / 1000;
 g = neutral_gyro(1);
 g_rad = 0;
 
+%% Key input figure for manual z control
+hFig = figure('Name', 'Z Control  (↑↓ keys)', ...
+    'KeyPressFcn', @(src,evt) zKeyHandler(src, evt), ...
+    'MenuBar', 'none', 'ToolBar', 'none');
+setappdata(hFig, 'zOffset', 0);
+
+text(0.5, 0.5, {'↑  z up', '↓  z down'}, ...
+    'Units','normalized', 'HorizontalAlignment','center', 'FontSize', 14);
+axis off;
+
 %%%% Voltage and Z %%%%%
 zPID = ForcePid();
 
@@ -127,7 +137,7 @@ while StartStopForm
         features2D = hLda.extractfeatures(emgData);
         [classDecision, ~] = hLda.classify(reshape(features2D', [], 1));
         className = classNames{classDecision};
-        
+
         if contains(lower(className), 'open')
             grip = min(grip + gripStep, gripMax);
         else
@@ -143,29 +153,32 @@ while StartStopForm
         vErr = vOperator - vRobot;
 
         disp(readVoltage(aOperator, 'A0'));
-    
+
         zUpdate = zPID.update(vErr, loopDt);
         z = z - zUpdate;
 
         if vOperator - vOperatorPrev < 0
             z = z + 0.05;
         end
-    
+
+        z = z + getappdata(hFig, 'zOffset');  % add manual bias on top
+        setappdata(hFig, 'zOffset', 0);       % clear after applying
+
         %% -----------------------------
         % 4. IK update
         %% -----------------------------
         ik = ik.updateIK([xM; yM; z; roll_cmd; pitch_cmd; yaw_cmd]);
-    
+
         % if vOperator < 0.1
         %     z = min(0.1, z + 0.02);
         % end
-        % 
+        %
         hMyo.getData();
         dt = toc(tLast);
         tLast = tic;
         q_7 = orientation(hMyo, ik.qActin, neutral_gyro, dt);
         ik.qActin(7) = q_7;
-    
+
         %% -----------------------------
         % 5. Send one combined command
         %% -----------------------------
@@ -178,4 +191,21 @@ end
 disp(' ');
 disp('TeleUltrasoundMain stopped.');
 
+end
+
+function zKeyHandler(hFig, event)
+zStep = 0.01;
+offset = getappdata(hFig, 'zOffset');
+switch event.Key
+    case 'uparrow'
+        offset = offset + zStep;
+        fprintf('zOffset = %.4f\n', offset);
+    case 'downarrow'
+        offset = offset - zStep;
+        fprintf('zOffset = %.4f\n', offset);
+    case 'r'
+        offset = 0;           % reset bias back to zero
+        disp('zOffset reset');
+end
+setappdata(hFig, 'zOffset', offset);
 end
