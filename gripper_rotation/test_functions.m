@@ -6,16 +6,16 @@ udpActin.initialize();
 
 disp('Actin UDP initialized.');
 
-% q = [.33, -0.74, 0, -1.51, 0, -0.768, 0];
-q = zeros(1,7)
+q = [0.89, -0.57, 0, -1.71, 0, 0.768, 0];
+% q = zeros(1,7)
 
 hMyo = Inputs.MyoUdp.getInstance();
 hMyo.initialize();
-hMyo.getData();
+hMyo.gActin.putData(typecast([q, 0.01], 'uint8'));
 
-udpActin.putData(typecast([q, 0.01], 'uint8'));
+detData();
 
-disp('Get Neutral Position')
+udpisp('Get Neutral Position')
 neutral_gyro = [0, 0, 0];
 for i = 1:1000
     neutral_gyro = neutral_gyro + hMyo.Gyroscope(:)';

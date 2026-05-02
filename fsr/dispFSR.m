@@ -1,4 +1,4 @@
-function dispFSR()
+  function dispFSR()
 
 a1 = arduino('COM5', 'Uno');
 % a2 = arduino('COM7', 'Uno');

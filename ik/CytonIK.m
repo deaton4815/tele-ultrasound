@@ -61,6 +61,28 @@ classdef CytonIK
                 error('CytonIK: xyzRPY must have 6 elements.');
             end
 
+            x = xyzRPY(1);
+            y = xyzRPY(2);
+            z = xyzRPY(3);
+            roll = xyzRPY(4);
+            pitch = xyzRPY(5);
+            yaw = xyzRPY(6);
+
+            tempX = x;
+            tempY = y;
+
+            x = -tempY;
+            y = tempX;
+
+            Txy = transl(x, y, 0);
+            Tz = transl(0, 0, z);
+            R = rpy2tr(roll, 0, 0);
+
+            % translation
+            Txyz = Txy * R * Tz;
+            xyzRPY(1) = Txyz(1,4);
+            xyzRPY(2) = Txyz(2,4);
+            xyzRPY(3) = Txyz(3,4);
             % On first call, record references
             if ~this.isInitialized
                 this.xyzRPYInputRef  = xyzRPY(:);
@@ -74,22 +96,7 @@ classdef CytonIK
             targetRPY  = this.xyzRPYRobotInit(4:6) + deltaRPY;
 
             % Position target: robot init + displacement from input init
-            x = xyzRPY(1);
-            y = xyzRPY(2);
-            z = xyzRPY(3);
-            roll = xyzRPY(4);
-            pitch = xyzRPY(5);
-            yaw = xyzRPY(6);
 
-            Txy = transl(x, y, 0);
-            Tz = transl(0, 0, z);
-            R = rpy2tr(roll, 0, 0);
-
-            % translation
-            Txyz = Txy * R * Tz;
-            xyzRPY(1) = Txyz(1,4);
-            xyzRPY(2) = Txyz(2,4);
-            xyzRPY(3) = Txyz(3,4);
 
             targetXYZ = this.xyzRPYRobotInit(1:3) + (xyzRPY(1:3) - this.xyzRPYInputRef(1:3));
 

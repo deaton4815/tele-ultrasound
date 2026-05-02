@@ -11,7 +11,7 @@ aOperator = arduino('COM7', 'Uno');
 aRobot = arduino('COM5', 'Uno');
 
 %% Main robot initial state
-q_initial_actin = [.33, -0.74, 0, -1.51, 0, 0.768, 0];
+q_initial_actin = [0.89, -0.57, 0, -1.71, 0, 0.768, 0];
 
 z = 0.5;
 roll_cmd  = 0;
@@ -101,6 +101,7 @@ zPID = ForcePid();
 v0_Operator = readVoltage(aOperator, 'A0');
 v0_Robot = readVoltage(aRobot, 'A0');
 
+vOperatorPrev = 0;
 while StartStopForm
     drawnow;
 
@@ -141,13 +142,13 @@ while StartStopForm
         vRobot = readVoltage(aRobot, 'A0') - v0_Robot;
         vErr = vOperator - vRobot;
 
-        disp(readVoltage(aRobot, 'A0'));
+        disp(readVoltage(aOperator, 'A0'));
     
         zUpdate = zPID.update(vErr, loopDt);
         z = z - zUpdate;
 
-        if vOperator < 0.1
-            z = min(0.5, z + 0.02);
+        if vOperator - vOperatorPrev < 0
+            z = z + 0.05;
         end
     
         %% -----------------------------
@@ -155,6 +156,10 @@ while StartStopForm
         %% -----------------------------
         ik = ik.updateIK([xM; yM; z; roll_cmd; pitch_cmd; yaw_cmd]);
     
+        % if vOperator < 0.1
+        %     z = min(0.1, z + 0.02);
+        % end
+        % 
         hMyo.getData();
         dt = toc(tLast);
         tLast = tic;
