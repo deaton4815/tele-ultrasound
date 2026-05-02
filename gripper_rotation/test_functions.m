@@ -6,7 +6,8 @@ udpActin.initialize();
 
 disp('Actin UDP initialized.');
 
-q = [0, -0.7, 0, -0.7, 0, -0.7, 0];
+% q = [.33, -0.74, 0, -1.51, 0, -0.768, 0];
+q = zeros(1,7)
 
 hMyo = Inputs.MyoUdp.getInstance();
 hMyo.initialize();
@@ -20,6 +21,7 @@ for i = 1:1000
     neutral_gyro = neutral_gyro + hMyo.Gyroscope(:)';
 end
 neutral_gyro = neutral_gyro / 1000;
+disp(neutral_gyro)
 disp('Stop')
 
 StartStopForm([]);

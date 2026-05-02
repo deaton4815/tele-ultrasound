@@ -3,12 +3,12 @@ function main_cyton_control(myDataFilename)
 
 %%%% Inputs %%%%%
 if nargin < 1
-myDataFilename = 'Training Data/USER_20260501_180659.trainingData';
+myDataFilename = 'Training Data/NEW_USER_20260501_211053.trainingData';
 end
 
 %% Force sensor init
-aOperator = arduino('COM5', 'Uno');
-aRobot = arduino('COM7', 'Uno');
+aOperator = arduino('COM7', 'Uno');
+aRobot = arduino('COM5', 'Uno');
 
 %% Main robot initial state
 q_initial_actin = [.33, -0.74, 0, -1.51, 0, 0.768, 0];
@@ -21,10 +21,10 @@ yaw_cmd   = 0;
 tPause = 0.1;
 
 %% Gripper settings
-gripMin = 0.00;
-gripMax = 0.03;
+gripMin = 0.005;
+gripMax = 0.01;
 gripStep = 0.003;
-grip = 0.01;
+grip = 0.005;
 
 %% Myo classifier setup
 
@@ -98,6 +98,9 @@ g_rad = 0;
 %%%% Voltage and Z %%%%%
 zPID = ForcePid();
 
+v0_Operator = readVoltage(aOperator, 'A0');
+v0_Robot = readVoltage(aRobot, 'A0');
+
 while StartStopForm
     drawnow;
 
@@ -106,7 +109,7 @@ while StartStopForm
     tLast = tic;
 
     if loopDt <= 0 || loopDt > 0.2
-        loopDt = dt;
+        loopDt = tPause;
     end
 
     %% -----------------------------
@@ -134,12 +137,18 @@ while StartStopForm
     else
         grip = gripMin;
         %%%%%%%% Get force diff %%%%%%%%
-        vOperator = readVoltage(aOperator, 'A0');
-        vRobot = readVoltage(aRobot, 'A0');
+        vOperator = readVoltage(aOperator, 'A0') - v0_Operator;
+        vRobot = readVoltage(aRobot, 'A0') - v0_Robot;
         vErr = vOperator - vRobot;
+
+        disp(readVoltage(aRobot, 'A0'));
     
         zUpdate = zPID.update(vErr, loopDt);
         z = z - zUpdate;
+
+        if vOperator < 0.1
+            z = min(0.5, z + 0.02);
+        end
     
         %% -----------------------------
         % 4. IK update
@@ -147,26 +156,10 @@ while StartStopForm
         ik = ik.updateIK([xM; yM; z; roll_cmd; pitch_cmd; yaw_cmd]);
     
         hMyo.getData();
-        gyroDeg = hMyo.Gyroscope(:)';
-        kB = 3;
-        
-        % Subtract neutral position for zeroing
-        g = g + gyroDeg(1) - neutral_gyro(1);
-        g = max(min(g, gLimHigh), gLimLow);
-        
-        % deadband to reduce drift
-        if abs(g) < 1.0
-            g = 0;
-        end
-    
-        g_rad = deg2rad(g);
-    
-        % Calculate new position
-        raw_q7 = ik.qActin(7) + g_rad * loopDt; 
-        
-        q_7 = atan2(sin(raw_q7), cos(raw_q7));
-    
-        ik.qActin(7) = q_7*kB;
+        dt = toc(tLast);
+        tLast = tic;
+        q_7 = orientation(hMyo, ik.qActin, neutral_gyro, dt);
+        ik.qActin(7) = q_7;
     
         %% -----------------------------
         % 5. Send one combined command

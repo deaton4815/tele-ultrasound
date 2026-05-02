@@ -15,8 +15,8 @@ classdef ForcePid < handle
 
         function u = update(obj, error, dt)
 
-            disp("error = ");
-            disp(error);
+            % disp("error = ");
+            % disp(error);
 
             % Accumulate integral error
             obj.integral = obj.integral + error * dt;
@@ -34,8 +34,8 @@ classdef ForcePid < handle
                 obj.Kd * derivative;
 
             % Output clamp
-            disp("u = ");
-            disp(u);
+            % disp("u = ");
+            % disp(u);
             u = max(min(u, obj.outputLimit), -obj.outputLimit);
 
             obj.prevError = error;

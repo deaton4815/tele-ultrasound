@@ -4,6 +4,7 @@ function q_7 = orientation(hMyo, q, neutral_gyro, dt)
     
     % Subtract neutral position for zeroing
     g = gyroDeg(1) - neutral_gyro(1);
+    % disp(g)
     
     % deadband to reduce drift
     if abs(g) < 1.0
@@ -16,5 +17,6 @@ function q_7 = orientation(hMyo, q, neutral_gyro, dt)
     raw_q7 = q(7) + g_rad * dt; 
     
     q_7 = atan2(sin(raw_q7), cos(raw_q7));
+    % disp(q_7)
 
 end
