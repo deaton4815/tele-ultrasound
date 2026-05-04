@@ -3,7 +3,7 @@ function main_cyton_control(myDataFilename)
 
 %%%% Inputs %%%%%
 if nargin < 1
-    myDataFilename = 'Training Data/NEW_USER_20260501_211053.trainingData';
+    myDataFilename = 'Training Data/grippertraining.trainingData';
 end
 
 %% Force sensor init
@@ -21,7 +21,7 @@ yaw_cmd   = 0;
 tPause = 0.1;
 
 %% Gripper settings
-gripMin = 0.005;
+gripMin = 0.007;
 gripMax = 0.01;
 gripStep = 0.003;
 grip = 0.005;
@@ -78,7 +78,7 @@ disp('Stop')
 %% Start/stop form
 StartStopForm([]);
 
-gripperControlTime = 10;   % seconds
+gripperControlTime = 20;   % seconds
 tStart = tic;
 tLast  = tic;
 
@@ -112,7 +112,10 @@ v0_Operator = readVoltage(aOperator, 'A0');
 v0_Robot = readVoltage(aRobot, 'A0');
 
 vOperatorPrev = 0;
+vErrAll = [];
+count = 0;
 while StartStopForm
+    count = count + 1;
     drawnow;
 
     elapsedTime = toc(tStart);
@@ -137,6 +140,7 @@ while StartStopForm
         features2D = hLda.extractfeatures(emgData);
         [classDecision, ~] = hLda.classify(reshape(features2D', [], 1));
         className = classNames{classDecision};
+        disp(className);
 
         if contains(lower(className), 'open')
             grip = min(grip + gripStep, gripMax);
@@ -150,16 +154,24 @@ while StartStopForm
         %%%%%%%% Get force diff %%%%%%%%
         vOperator = readVoltage(aOperator, 'A0') - v0_Operator;
         vRobot = readVoltage(aRobot, 'A0') - v0_Robot;
+        vOperator = min(vOperator, 1);
+        vRobot = min(vRobot, 1);
         vErr = vOperator - vRobot;
-
+        vErrAll(count) = vErr;
+        
+        
+        disp("Operator = ");
         disp(readVoltage(aOperator, 'A0'));
+
+        disp("Robot = ");
+        disp(readVoltage(aRobot, 'A0'));
 
         zUpdate = zPID.update(vErr, loopDt);
         z = z - zUpdate;
 
-        if vOperator - vOperatorPrev < 0
-            z = z + 0.05;
-        end
+        % if vOperator - vOperatorPrev < 0
+        %     z = z + 0.05;
+        % end
 
         z = z + getappdata(hFig, 'zOffset');  % add manual bias on top
         setappdata(hFig, 'zOffset', 0);       % clear after applying
@@ -187,6 +199,8 @@ while StartStopForm
 
     pause(0.1);
 end
+
+save('vErrAll.mat', 'vErrAll');
 
 disp(' ');
 disp('TeleUltrasoundMain stopped.');
