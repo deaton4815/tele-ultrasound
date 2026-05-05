@@ -1,0 +1,4 @@
+Must install MediaPipe and OpenCV. Run:
+
+pip install mediapipe
+pip install opencv-python
