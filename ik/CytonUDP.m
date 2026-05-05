@@ -19,8 +19,7 @@ classdef CytonUDP < handle
         function moveActinCyton(this, q, g)
             % Send joint angles to Actin Viewer over UDP
             % g: value for gripper
-            % q: 7x1 joint angles in Actin space (radians)
-            % Actin expects 8 float64 values: 7 joint angles + gripper aperture
+            % q: joint angles
 
             if numel(q) ~= 7
                 error('CytonUDP:invalidInput', 'q must have 7 elements, got %d.', numel(q));

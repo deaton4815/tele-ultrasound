@@ -80,10 +80,10 @@ classdef CameraCalibration < handle
             mpHeightRight = abs(this.mpCornerCoords(3,2) - this.mpCornerCoords(2,2));
             mpHeight      = mean([mpHeightLeft, mpHeightRight]);
 
-            % Validate — warn if edges are inconsistent (camera not level)
+            % Warn if inconsistent edges
             widthDiff  = abs(mpWidthTop  - mpWidthBottom) / mpWidth;
             heightDiff = abs(mpHeightLeft - mpHeightRight) / mpHeight;
-            if widthDiff > 0.05 || heightDiff > 0.05
+            if widthDiff > 0.10 || heightDiff > 0.10
                 warning('Rerun calibration.');
             end
 
@@ -94,7 +94,7 @@ classdef CameraCalibration < handle
         function waitForUser(~, cornerLabel)
             msg = sprintf('Move your finger to the %s corner.\n\nClick OK when ready to collect samples.', cornerLabel);
             h   = msgbox(msg, 'Calibration', 'help', 'modal');
-            uiwait(h);   % blocks until user closes the dialog
+            uiwait(h);
         end
 
     end

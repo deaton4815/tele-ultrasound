@@ -31,7 +31,7 @@ classdef HandLandMarker < handle
                 end
                 coords = jsondecode(raw);
                 xy = coords(:);
-                this.xyPrev = xy;   % now persists because handle class
+                this.xyPrev = xy;
             catch
                 xy = this.xyPrev;
                 warning('Could not get new coordinates. Using previous coordinates.')

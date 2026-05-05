@@ -14,9 +14,6 @@ aRobot = arduino('COM5', 'Uno');
 q_initial_actin = [0.89, -0.57, 0, -1.71, 0, 0.768, 0];
 
 z = 0.5;
-roll_cmd  = 0;
-pitch_cmd = 0;
-yaw_cmd   = 0;
 
 tPause = 0.1;
 
@@ -66,13 +63,6 @@ msg = sprintf('Place your hand in the center of the box to start the procedure')
 h = msgbox(msg, 'Ultrasound', 'help', 'modal');
 uiwait(h);
 
-%% Control gains
-gyroDeadband = 8;
-yawGain = 0.010;
-
-gLimLow = -90;
-gLimHigh = 90;
-
 disp('Stop')
 
 %% Start/stop form
@@ -93,7 +83,6 @@ for i = 1:1000
 end
 neutral_gyro = neutral_gyro / 1000;
 g = neutral_gyro(1);
-g_rad = 0;
 
 %% Key input figure for manual z control
 hFig = figure('Name', 'Z Control  (↑↓ keys)', ...
@@ -111,8 +100,7 @@ zPID = ForcePid();
 v0_Operator = readVoltage(aOperator, 'A0');
 v0_Robot = readVoltage(aRobot, 'A0');
 
-vOperatorPrev = 0;
-vErrAll = [];
+vErrAll = []; % store all errors
 count = 0;
 while StartStopForm
     count = count + 1;
@@ -157,7 +145,8 @@ while StartStopForm
         vOperator = min(vOperator, 1);
         vRobot = min(vRobot, 1);
         vErr = vOperator - vRobot;
-        vErrAll(count) = vErr;
+
+        vErrAll(count) = vErr; % store all force errors
         
         
         disp("Operator = ");
@@ -169,10 +158,6 @@ while StartStopForm
         zUpdate = zPID.update(vErr, loopDt);
         z = z - zUpdate;
 
-        % if vOperator - vOperatorPrev < 0
-        %     z = z + 0.05;
-        % end
-
         z = z + getappdata(hFig, 'zOffset');  % add manual bias on top
         setappdata(hFig, 'zOffset', 0);       % clear after applying
 
@@ -181,10 +166,6 @@ while StartStopForm
         %% -----------------------------
         ik = ik.updateIK([xM; yM; z; roll_cmd; pitch_cmd; yaw_cmd]);
 
-        % if vOperator < 0.1
-        %     z = min(0.1, z + 0.02);
-        % end
-        %
         hMyo.getData();
         dt = toc(tLast);
         tLast = tic;
@@ -200,7 +181,7 @@ while StartStopForm
     pause(0.1);
 end
 
-save('vErrAll.mat', 'vErrAll');
+save('vErrAll.mat', 'vErrAll'); % save all force errors for processing
 
 disp(' ');
 disp('TeleUltrasoundMain stopped.');
